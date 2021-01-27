@@ -9,6 +9,7 @@ import numpy as np
 from face_register import FaceRegister
 import fake_detector
 from simple_tracker import TrackerPool, calc_iou
+from utils import draw_rect, make_low_quality, get_closest_box_arg
 
 
 FACENET = 'models/MobileNetV3_adam_relu6_gavg_arcface_60_trillion.h5'
@@ -58,29 +59,16 @@ class FrameProcessor(object):
             for box in classifed_faces['none']:
                 for tbox in target_boxes:
                     if calc_iou(box, tbox) < 0.4:
-                        self.make_low_quality(img, box)
+                        make_low_quality(img, box)
                 if len(target_boxes) == 0:
-                    self.make_low_quality(img, box)
+                    make_low_quality(img, box)
 
     def process_license(self, img, bboxes):
         """
         번호판 영역을 처리합니다.
         """
         for box in bboxes:
-            self.make_low_quality(img, box)
-
-    def make_low_quality(self, img, area):
-        """
-        주어진 영역의 이미지 퀄리티를 낮춥니다.
-        """
-        area = np.array(area, dtype=np.int32)
-        crop = img[area[1]:area[3], area[0]:area[2]]
-        shape = crop.shape[:2]
-        crop = cv2.resize(crop, (40, 40))
-        crop = cv2.GaussianBlur(crop, (7, 7), 5)
-        crop = cv2.resize(crop, None, fx=0.05, fy=0.05)
-        crop = cv2.resize(crop, (shape[1], shape[0]))
-        img[area[1]:area[3], area[0]:area[2]] = crop
+            make_low_quality(img, box)
 
     def detect_objects(self, img):
         """
@@ -121,7 +109,7 @@ class FrameProcessor(object):
         
         if event == cv2.EVENT_LBUTTONUP:
             img = copy.deepcopy(self.current_img)
-            closest_bbox_idx = self.get_closest_box_arg(x, y, self.face_boxes)
+            closest_bbox_idx = get_closest_box_arg(x, y, self.face_boxes)
             if closest_bbox_idx < 0:
                 return
             self.selected_pos_idx = closest_bbox_idx
@@ -130,31 +118,13 @@ class FrameProcessor(object):
             self.result_img = img
         elif event == cv2.EVENT_RBUTTONUP:
             img = copy.deepcopy(self.current_img)
-            closest_bbox_idx = self.get_closest_box_arg(x, y, self.face_boxes)
+            closest_bbox_idx = get_closest_box_arg(x, y, self.face_boxes)
             if closest_bbox_idx < 0:
                 return
             self.selected_neg_idx = closest_bbox_idx
             b = self.face_boxes[closest_bbox_idx]
             cv2.rectangle(img, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 3)
             self.result_img = img
-
-    def get_closest_box_arg(self, x, y, bboxes):
-        """
-        주어진 좌표와 가장 가까운 bounding box의 index를 반환합니다.
-        """
-        closest_bbox_idx = -1
-        min_distance = 1e+10
-        for i, b in enumerate(bboxes):
-            if (x > b[0] and x < b[2]) and (y > b[1] and y < b[3]):
-                cx = (b[2] - b[0]) / 2
-                cy = (b[3] - b[1]) / 2
-                dx = np.abs(cx-x)
-                dy = np.abs(cy-y)
-                distance = np.sqrt(dx**2 + dy**2)
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_bbox_idx = i
-        return closest_bbox_idx
 
     def save_reference_faces(self, save_folder):
         target_dir = '{}/0'.format(save_folder)
