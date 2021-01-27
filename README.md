@@ -35,7 +35,7 @@ python ./reference_tool.py --file ./videos/sample1.mp4 --scale 1.0
 
 ## 검출기 구현 함수
 - 검출기는 frame_processor.py에서 FrameProcessor Class안에있는 detect_objects 함수에서 구현해주시면 됩니다.
-```
+```Python
 def detect_objects(self, img):
         """
         얼굴과 번호판을 검출하여 좌표를 반환합니다.
