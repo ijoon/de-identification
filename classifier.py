@@ -2,7 +2,7 @@ from sklearn import svm
 import numpy as np
 
 
-class Calssifier(object):
+class Classifier(object):
 
     def __init__(self):
         self.clf = svm.SVC(kernel=self._custom_kernel)

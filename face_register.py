@@ -1,5 +1,5 @@
 from face_module import FaceModule
-from classifier import Calssifier
+from classifier import Classifier
 
 import cv2
 import numpy as np
@@ -8,7 +8,7 @@ class FaceRegister(object):
 
     def __init__(self, model_file):
         self.fm = FaceModule(model_file)
-        self.clf = Calssifier()
+        self.clf = Classifier()
 
     def classify(self, img, bboxes):
         faces = []
