@@ -11,7 +11,7 @@ class FaceModule(object):
 
     def __call__(self, img):
         img = tf.cast(img, dtype=tf.float32) / 255.
-        em = self.face_net(img)
+        em = self.face_net(img, training=False)
         em = tf.math.l2_normalize(em, axis=1)
         return em.numpy()
 
@@ -41,7 +41,7 @@ class FaceModule(object):
         ds = ds.batch(32)
         for x, y in ds:
             x /= 255.
-            em = self.face_net(x)
+            em = self.face_net(x, training=False)
             em = tf.math.l2_normalize(em, axis=1)
             em = em.numpy()
             for a, b in zip(em, y):
