@@ -20,6 +20,10 @@ class FrameProcessor(object):
     def __init__(self, window_name):
         self.selected_pos_idx = None
         self.selected_neg_idx = None
+
+        self.selected_pos_idxs = []
+        self.selected_neg_idxs = []
+
         self.current_img = None
         self.result_img = None
         self.face_boxes = None
@@ -29,7 +33,7 @@ class FrameProcessor(object):
         self.lock = threading.Lock()
         self.face_tracker = TrackerPool(num_tracker=5, iou_thr=0.2, patience=7)
         self.face_detector = fake_detector.FakeFaceDet()
-        cv2.setMouseCallback(window_name, self._mouse_callback)
+        cv2.setMouseCallback(window_name, self._mouse_callback_multi_select)
 
     def process(self, img):
         """
@@ -38,6 +42,9 @@ class FrameProcessor(object):
         """
         self.selected_pos_idx = None
         self.selected_neg_idx = None
+
+        self.selected_pos_idxs = []
+        self.selected_neg_idxs = []
         self.current_img = copy.deepcopy(img)
         bbox_dict = self.detect_objects(img)
         self.face_boxes = bbox_dict[0]
@@ -126,6 +133,51 @@ class FrameProcessor(object):
             cv2.rectangle(img, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 3)
             self.result_img = img
 
+    
+    def _mouse_callback_multi_select(self, event, x,y, flags, param):
+        """
+        마우스 클릭을 통해 얼굴을 등록할 수 있는 기능입니다.
+        왼쪽 버튼은 등록할 얼굴을 지정합니다.
+        오른쪽 버튼은 오인식 얼굴을 제거하기 위해 사용합니다.
+        왼쪽 버튼이 클릭되면 해당 bounding box의 index가 self.selected_pos_idx 에 저장됩니다.
+        오른쪽 버튼이 클릭되면 해당 bounding box의 index가 self.selected_neg_idx 에 저장됩니다.
+        """
+        
+        if event == cv2.EVENT_LBUTTONUP or event == cv2.EVENT_RBUTTONUP:
+            img = copy.deepcopy(self.result_img)
+            closest_bbox_idx = get_closest_box_arg(x, y, self.face_boxes)
+            if closest_bbox_idx < 0:
+                return
+
+            if event == cv2.EVENT_LBUTTONUP:
+                if closest_bbox_idx in self.selected_pos_idxs:
+                    self.selected_pos_idxs.remove(closest_bbox_idx)
+                else:
+                    self.selected_pos_idxs.append(closest_bbox_idx)
+
+                if closest_bbox_idx in self.selected_neg_idxs:
+                    self.selected_neg_idxs.remove(closest_bbox_idx)
+
+            elif event == cv2.EVENT_RBUTTONUP:
+                if closest_bbox_idx in self.selected_neg_idxs:
+                    self.selected_neg_idxs.remove(closest_bbox_idx)
+                else:
+                    self.selected_neg_idxs.append(closest_bbox_idx)
+
+                if closest_bbox_idx in self.selected_pos_idxs:
+                    self.selected_pos_idxs.remove(closest_bbox_idx)
+
+            for pos_idx in self.selected_pos_idxs:
+                b = self.face_boxes[pos_idx]
+                cv2.rectangle(img, (b[0], b[1]), (b[2], b[3]), (255, 255, 255), 3)
+
+            for neg_idx in self.selected_neg_idxs:
+                b = self.face_boxes[neg_idx]
+                cv2.rectangle(img, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 3)
+
+            self.result_img = img
+
+
     def save_reference_faces(self, save_folder):
         target_dir = '{}/0'.format(save_folder)
         other_dir = '{}/1'.format(save_folder)
@@ -150,3 +202,24 @@ class FrameProcessor(object):
             img = self.current_img[b[1]:b[3], b[0]:b[2]]
             uniq_id = int(time.time())
             cv2.imwrite('{}/{}_{}.jpg'.format(other_dir, uniq_id, 0), img)
+
+    def save_reference_faces_multi_select(self, save_folder):
+        target_dir = '{}/0'.format(save_folder)
+        other_dir = '{}/1'.format(save_folder)
+        if not os.path.exists(save_folder):
+            os.mkdir(save_folder)
+        if not os.path.exists(target_dir):
+            os.mkdir(target_dir)
+        if not os.path.exists(other_dir):
+            os.mkdir(other_dir)
+        
+        for i, b in enumerate(self.face_boxes):
+            b = np.array(b).astype(np.int32)
+            img = self.current_img[b[1]:b[3], b[0]:b[2]]
+            uniq_id = int(time.time())
+
+            if i in self.selected_pos_idxs:
+                cv2.imwrite('{}/{}_{}.jpg'.format(target_dir, uniq_id, i), img)
+
+            else:
+                cv2.imwrite('{}/{}_{}.jpg'.format(other_dir, uniq_id, i), img)

@@ -42,7 +42,7 @@ if __name__ == '__main__':
             elif k == ord('t'):
                 fp.face_register.update(save_folder)
             elif k == ord('s'):
-                fp.save_reference_faces(save_folder)
+                fp.save_reference_faces_multi_select(save_folder)
             elif k == ord('j'):
                 fake_detector.frame_count = cap.previous_step()
             elif k == ord('k'):
